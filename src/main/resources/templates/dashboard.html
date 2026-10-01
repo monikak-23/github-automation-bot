@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automation Dashboard | GitHub Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <!-- Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="p-2 bg-blue-600 rounded-lg text-white font-bold text-sm">??</span>
+                <span class="font-bold text-lg tracking-tight">GitHub Automation Bot</span>
+                <span class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">v1.0-LIVE</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <img th:if="${avatarUrl != null}" th:src="${avatarUrl}" class="w-8 h-8 rounded-full border border-slate-700"/>
+                    <span class="text-sm font-medium text-slate-300" th:text="${username}">User</span>
+                </div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                        Sign Out
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        <!-- Webhook Info Box -->
+        <div class="bg-blue-950/40 border border-blue-800/60 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-semibold text-blue-400">Webhook Receiver Endpoint</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Point your GitHub repo webhook payload URL to this endpoint with Content type <code class="text-slate-200">application/json</code>:</p>
+                <code class="inline-block mt-2 text-xs bg-slate-900 border border-blue-900 text-blue-300 px-3 py-1 rounded-md font-mono select-all">
+                    POST /api/webhooks/github
+                </code>
+            </div>
+            <div class="text-xs text-slate-400 space-y-1">
+                <div>?? <strong>Security:</strong> Protected with HMAC-SHA256 (<code class="text-slate-300">X-Hub-Signature-256</code>)</div>
+                <div>??? <strong>Idempotency:</strong> Replay protected via <code class="text-slate-300">X-GitHub-Delivery</code></div>
+            </div>
+        </div>
+
+        <!-- Automation Rule Builder -->
+        <section class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <h2 class="text-xl font-bold text-white mb-2">Create Automation Rule</h2>
+            <p class="text-sm text-slate-400 mb-6">Configure custom triggers and actions without editing code.</p>
+
+            <form action="/api/rules" method="post" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Rule Name</label>
+                        <input type="text" name="name" required placeholder="e.g. Auto-label Bug & Alert Slack" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Event Type</label>
+                        <select name="eventType" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="issues">Issues</option>
+                            <option value="pull_request">Pull Requests</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Action State Filter</label>
+                        <input type="text" name="actionFilter" value="ANY" placeholder="opened, closed, labeled, or ANY" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-800/60">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Field to Inspect</label>
+                        <select name="fieldToMatch" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="title">Title</option>
+                            <option value="body">Body / Description</option>
+                            <option value="author">Author / Sender</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Match Operator</label>
+                        <select name="matchOperator" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="CONTAINS">CONTAINS</option>
+                            <option value="EQUALS">EQUALS</option>
+                            <option value="STARTS_WITH">STARTS_WITH</option>
+                            <option value="REGEX">REGEX</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Match Pattern / Value</label>
+                        <input type="text" name="matchValue" required placeholder="e.g. bug, fix, security" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-800/60">
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="addLabelAction" value="true" class="rounded bg-slate-800 border-slate-700 text-blue-600"/>
+                            <span class="text-xs font-medium text-slate-200">Add GitHub Label</span>
+                        </label>
+                        <input type="text" name="labelToApply" placeholder="Label name (e.g. bug, triage)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="postCommentAction" value="true" class="rounded bg-slate-800 border-slate-700 text-blue-600"/>
+                            <span class="text-xs font-medium text-slate-200">Post GitHub Comment</span>
+                        </label>
+                        <input type="text" name="commentBody" placeholder="Comment text to post" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-6 pt-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="sendSlackAlert" value="true" checked class="rounded bg-slate-800 border-slate-700 text-blue-600"/>
+                        <span class="text-xs font-medium text-slate-200">Send Slack Notification</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="enableAiTriage" value="true" class="rounded bg-slate-800 border-slate-700 text-blue-600"/>
+                        <span class="text-xs font-medium text-blue-400">?? Enable Gemini AI Triage & Summary</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm px-5 py-2.5 rounded-lg transition duration-150">
+                    Save Rule
+                </button>
+            </form>
+
+            <!-- Configured Rules List -->
+            <div class="mt-8 border-t border-slate-800 pt-6">
+                <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">Active Automation Rules</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-950/60 text-slate-400 uppercase border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">Rule Name</th>
+                                <th class="px-4 py-3">Trigger Condition</th>
+                                <th class="px-4 py-3">Actions</th>
+                                <th class="px-4 py-3">AI Triage</th>
+                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3 text-right">Controls</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60">
+                            <tr th:if="${#lists.isEmpty(rules)}">
+                                <td colspan="6" class="px-4 py-6 text-center text-slate-500">No automation rules configured yet. Create one above!</td>
+                            </tr>
+                            <tr th:each="rule : ${rules}" class="hover:bg-slate-800/30">
+                                <td class="px-4 py-3 font-semibold text-white" th:text="${rule.name}">Rule</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono" th:text="${rule.eventType}">issues</span>
+                                    <span class="text-slate-400">if <span th:text="${rule.fieldToMatch}">title</span> <span th:text="${rule.matchOperator}">CONTAINS</span> "<span class="text-blue-400 font-medium" th:text="${rule.matchValue}">bug</span>"</span>
+                                </td>
+                                <td class="px-4 py-3 space-x-1">
+                                    <span th:if="${rule.addLabelAction}" class="px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded">Label</span>
+                                    <span th:if="${rule.postCommentAction}" class="px-2 py-0.5 bg-purple-950 text-purple-400 border border-purple-800 rounded">Comment</span>
+                                    <span th:if="${rule.sendSlackAlert}" class="px-2 py-0.5 bg-amber-950 text-amber-400 border border-amber-800 rounded">Slack</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span th:if="${rule.enableAiTriage}" class="text-blue-400 font-semibold">Enabled</span>
+                                    <span th:unless="${rule.enableAiTriage}" class="text-slate-500">Disabled</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span th:if="${rule.active}" class="text-xs text-emerald-400">Active</span>
+                                    <span th:unless="${rule.active}" class="text-xs text-slate-500">Inactive</span>
+                                </td>
+                                <td class="px-4 py-3 text-right space-x-2">
+                                    <form th:action="@{/api/rules/{id}/toggle(id=${rule.id})}" method="post" class="inline">
+                                        <button type="submit" class="text-xs text-blue-400 hover:underline" th:text="${rule.active ? 'Pause' : 'Activate'}">Toggle</button>
+                                    </form>
+                                    <form th:action="@{/api/rules/{id}/delete(id=${rule.id})}" method="post" class="inline">
+                                        <button type="submit" class="text-xs text-rose-400 hover:underline">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Observability & Audit Log -->
+        <section class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Event Audit & Observability Log</h2>
+                    <p class="text-sm text-slate-400">Real-time trace of received events, execution latency, and actions taken.</p>
+                </div>
+                <button onclick="window.location.reload()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5">
+                    ?? Refresh Log
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950/60 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Timestamp</th>
+                            <th class="px-4 py-3">Event / Delivery ID</th>
+                            <th class="px-4 py-3">Repository</th>
+                            <th class="px-4 py-3">Matched Rule</th>
+                            <th class="px-4 py-3">Actions Dispatched</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 font-mono">
+                        <tr th:if="${#lists.isEmpty(auditLogs)}">
+                            <td colspan="7" class="px-4 py-8 text-center text-slate-500 font-sans">No events logged yet. Send a webhook to see live activity.</td>
+                        </tr>
+                        <tr th:each="log : ${auditLogs}" class="hover:bg-slate-800/30">
+                            <td class="px-4 py-3 text-slate-400 whitespace-nowrap" th:text="${#temporals.format(log.createdAt, 'yyyy-MM-dd HH:mm:ss')}">Time</td>
+                            <td class="px-4 py-3">
+                                <div class="font-bold text-white" th:text="${log.eventType + (log.action != null ? ' (' + log.action + ')' : '')}">issues</div>
+                                <div class="text-[10px] text-slate-500" th:text="${log.deliveryGuid}">guid</div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-300" th:text="${log.repository}">owner/repo</td>
+                            <td class="px-4 py-3 text-slate-300 font-sans" th:text="${log.ruleTriggered}">Rule</td>
+                            <td class="px-4 py-3 font-sans">
+                                <div th:text="${log.actionsTaken}">Actions</div>
+                                <div th:if="${log.aiSummary != null}" class="text-[11px] text-blue-400 mt-1 italic" th:text="'AI: ' + ${log.aiSummary}"></div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span th:if="${log.status.name() == 'SUCCESS'}" class="px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded text-[11px]">SUCCESS</span>
+                                <span th:if="${log.status.name() == 'FAILED'}" class="px-2 py-0.5 bg-rose-950 text-rose-400 border border-rose-800 rounded text-[11px]">FAILED</span>
+                                <span th:if="${log.status.name() == 'NO_RULE_MATCHED'}" class="px-2 py-0.5 bg-slate-800 text-slate-400 border border-slate-700 rounded text-[11px]">NO_MATCH</span>
+                                <span th:if="${log.status.name() == 'BOT_LOOP_PREVENTED'}" class="px-2 py-0.5 bg-amber-950 text-amber-400 border border-amber-800 rounded text-[11px]">LOOP_PREVENTED</span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-400" th:text="${log.executionTimeMs + ' ms'}">45 ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+</body>
+</html>
